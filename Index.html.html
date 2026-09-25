@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Control de Calidad – Aros de Goma</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0e4f42">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="QC Aros">
+<style>
+:root{
+  --bg:#f4f6f8;--card:#fff;--text:#1c2430;--muted:#5c6b7a;--border:#dde3ea;
+  --accent:#1d6f5e;--accent2:#0e4f42;--ok:#1d7a3c;--ok-bg:#e5f6ea;
+  --bad:#b3261e;--bad-bg:#fdeceb;--warn:#8a5a00;--warn-bg:#fdf1d6;--head:#eef3f1;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161a;--card:#1b2126;--text:#e7ecef;--muted:#9aa7b2;--border:#2b333a;
+  --accent:#3fa98a;--accent2:#2c8a70;--ok:#4caf6a;--ok-bg:#123321;
+  --bad:#e5695f;--bad-bg:#3a1a18;--warn:#e0b84a;--warn-bg:#3a3113;--head:#20272c;
+}}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px}
+header{position:sticky;top:env(safe-area-inset-top,0px);background:var(--accent2);color:#fff;padding:12px 16px;z-index:5;display:flex;justify-content:space-between;align-items:center}
+header h1{margin:0;font-size:16px}
+#syncDot{width:9px;height:9px;border-radius:50%;background:#6cf29b;display:inline-block;margin-right:6px}
+#syncDot.off{background:#e5695f}
+.wrap{max-width:1100px;margin:0 auto;padding:12px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tabs button{flex:1;min-width:110px;padding:10px 6px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600}
+.tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+section{display:none} section.active{display:block}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px}
+.card h2{margin:0 0 10px;font-size:15px;color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+input,select{width:100%;padding:9px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px}
+.btn{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+.btn.secondary{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:left;font-size:12.5px;white-space:nowrap}
+th{background:var(--head);color:var(--muted)} tr:last-child td{border-bottom:none}
+.pill{padding:3px 8px;border-radius:20px;font-weight:700;font-size:11px}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.small{font-size:11.5px;color:var(--muted)}
+.row-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.infobox{background:var(--head);border-radius:8px;padding:10px;margin:8px 0;font-size:12.5px}
+.x-btn{background:var(--bad-bg);color:var(--bad);border:none;border-radius:6px;padding:5px 9px;cursor:pointer;font-weight:700}
+.banner-bad{background:var(--bad-bg);color:var(--bad);padding:10px;border-radius:8px;font-weight:700;margin-bottom:10px}
+.foot-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
+</style>
+</head>
+<body>
+<header><h1>Control de Calidad – Aros de Goma</h1><span class="small"><span id="syncDot"></span><span id="syncTxt">sincronizando…</span></span></header>
+<div class="wrap">
+  <div class="tabs">
+    <button data-tab="carga" class="active">① Cargar Remito</button>
+    <button data-tab="remito">② Reporte del Remito</button>
+    <button data-tab="scorecard">③ Scorecard / Histórico</button>
+    <button data-tab="proveedores">＋ Proveedores</button>
+  </div>
+
+  <section id="carga" class="active">
+    <div class="card">
+      <h2>Datos del remito</h2>
+      <div class="grid">
+        <div><label>Proveedor</label><select id="proveedor" onchange="onProveedorChange()"></select></div>
+        <div><label>N° de Remito</label><input id="remitoNum"></div>
+        <div><label>Fecha de Ingreso</label><input id="fecha" type="date"></div>
+      </div>
+      <div id="provInfo" class="infobox"></div>
+    </div>
+    <div class="card" id="cargaLotesCard">
+      <h2>Renglones / Lotes</h2>
+      <div class="tablewrap"><table id="loteTable">
+        <thead><tr><th>Item</th><th>DN</th><th>Unión</th><th>Cant.</th><th>n</th><th>Ac</th><th>Re</th><th>Def.</th><th>Estado</th><th>Obs.</th><th></th></tr></thead>
+        <tbody id="loteBody"></tbody>
+      </table></div>
+      <div class="row-actions">
+        <button class="btn secondary" onclick="addLoteRow()">+ Agregar lote</button>
+        <button class="btn" id="btnGuardar" onclick="guardarRemito()">Guardar remito</button>
+      </div>
+      <p class="foot-note">n/Ac/Re se calculan solos según el AQL y Nivel de Inspección vigentes del proveedor. Aprobado: Def. ≤ Ac. Rechazado: Def. ≥ Re. Aprobado sin defectos = +3 pts, aprobado con defectos dentro de tolerancia = +2 pts, rechazado = −5 pts.</p>
+    </div>
+  </section>
+
+  <section id="remito">
+    <div class="card">
+      <h2>Buscar remito</h2>
+      <div class="grid">
+        <div><label>Seleccionar remito</label><select id="remitoSel" onchange="renderRemitoDetalle(this.value)"></select></div>
+        <div><label>Buscar (N° remito o proveedor)</label><input id="remitoBuscar" oninput="filtrarRemitos()"></div>
+      </div>
+    </div>
+    <div class="card" id="remitoDetalle"><p class="small">Elegí un remito arriba para ver el detalle.</p></div>
+  </section>
+
+  <section id="scorecard">
+    <div class="card">
+      <h2>Scorecard de proveedores (tiempo real)</h2>
+      <div class="tablewrap"><table><thead><tr><th>Proveedor</th><th>Nivel Control</th><th>AQL/Insp.</th><th>Puntos</th><th>Racha Aprob.</th><th>Últimos 5</th><th>Estado</th></tr></thead>
+      <tbody id="scoreBody"></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Histórico acumulado</h2>
+      <div class="grid">
+        <div><label>Agrupar por</label><select id="groupBy" onchange="renderHistorico()">
+          <option value="proveedor">Proveedor</option><option value="dn">DN</option>
+          <option value="union">Tipo de Unión</option><option value="proveedor_dn">Proveedor + DN</option>
+        </select></div>
+        <div><label>Filtrar proveedor</label><select id="fProv" onchange="renderHistorico()"><option value="">Todos</option></select></div>
+      </div>
+      <div class="tablewrap"><table><thead><tr><th>Grupo</th><th>Recibidas</th><th>Aprobadas</th><th>Rechazadas</th><th>% Aprob.</th><th>% Rech.</th></tr></thead>
+      <tbody id="histBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <section id="proveedores">
+    <div class="card">
+      <h2>Alta de nuevo proveedor</h2>
+      <div class="grid">
+        <div><label>Nombre</label><input id="nuevoProv"></div>
+        <div><label>Notas / Trazabilidad</label><input id="nuevaTraza" placeholder="Opcional"></div>
+      </div>
+      <div class="row-actions"><button class="btn" onclick="altaProveedor()">Registrar (inicia en Normal, 0 pts)</button></div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ================== CONFIG ================== */
+// ⚠️ Reemplazar por la URL de tu Web App de Apps Script (ver instrucciones)
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzewh7dXKK6qh-XojB-RC_AWNLV4G3X6n9GUHg6aGITzQ_8NNKnWY2SwfovS3tnR5df/exec';
+const POLL_MS = 8000;
+
+/* ================== TABLAS ISO 2859-1 (para Ac/Re por muestreo, no aplica en Total 100%) ================== */
+const LOT_RANGES=[[2,8,['A','A','B']],[9,15,['A','B','C']],[16,25,['B','C','D']],[26,50,['C','D','E']],[51,90,['C','E','F']],[91,150,['D','F','G']],[151,280,['E','G','H']],[281,500,['F','H','J']],[501,1200,['G','J','K']],[1201,3200,['H','K','L']],[3201,10000,['J','L','M']],[10001,35000,['K','M','N']],[35001,150000,['L','N','P']],[150001,500000,['M','P','Q']],[500001,Infinity,['N','Q','R']]];
+const LETTER_ORDER=['A','B','C','D','E','F','G','H','J','K','L','M','N','P','Q','R'];
+const N_TABLE={A:2,B:3,C:5,D:8,E:13,F:20,G:32,H:50,J:80,K:125,L:200,M:315,N:500,P:800,Q:1250,R:2000};
+const AQL_LIST=[0.010,0.015,0.025,0.040,0.065,0.10,0.15,0.25,0.40,0.65,1.0,1.5,2.5,4.0,6.5,10,15,25,40,65,100];
+const SEQ=[[0,1],[1,2],[2,3],[3,4],[5,6],[7,8],[10,11],[14,15],[21,22],[30,31],[44,45]];
+function getLetter(lotSize,nivel){const i=nivel==='I'?0:nivel==='II'?1:2;for(const[min,max,l] of LOT_RANGES){if(lotSize>=min&&lotSize<=max)return l[i];}return LOT_RANGES[0][2][i];}
+function nearestAqlIdx(a){let b=0;for(let i=1;i<AQL_LIST.length;i++){if(Math.abs(AQL_LIST[i]-a)<Math.abs(AQL_LIST[b]-a))b=i;}return b;}
+function getPlan(letter,aql){let li=LETTER_ORDER.indexOf(letter);const ai=nearestAqlIdx(aql);let si=ai+li-16;while(si<0&&li<LETTER_ORDER.length-1){li++;si=ai+li-16;}while(si>=SEQ.length&&li>0){li--;si=ai+li-16;}si=Math.max(0,Math.min(SEQ.length-1,si));const lu=LETTER_ORDER[li];const[ac,re]=SEQ[si];return{n:N_TABLE[lu],ac,re};}
+
+/* ================== PARAMETROS DE INSPECCION POR NIVEL DE CONTROL ================== */
+function paramsPorNivelControl(nc){
+  if(nc==='Normal') return {aql:4.0, nivelInsp:'II', label:'Normal (AQL 4.0% / Nivel II)'};
+  if(nc==='Simplificado') return {aql:4.0, nivelInsp:'I', label:'Simplificado (AQL 4.0% / Nivel I)'};
+  if(nc==='Estricto') return {aql:2.5, nivelInsp:'III', label:'Estricto (AQL 2.5% / Nivel III)'};
+  if(nc==='Total') return {aql:null, nivelInsp:'100%', label:'Control Total — inspección al 100% del lote'};
+  if(nc==='Suspendido') return {aql:null, nivelInsp:'SUSPENDIDO', label:'⛔ SUSPENSIÓN DE COMPRAS'};
+  return {aql:4.0, nivelInsp:'II', label:'Normal'};
+}
+function planPara(nc, cantidad){
+  const p = paramsPorNivelControl(nc);
+  if(nc==='Total') return {n:cantidad, ac:0, re:1};
+  if(nc==='Suspendido') return {n:0, ac:0, re:1};
+  const letter = getLetter(cantidad, p.nivelInsp);
+  return getPlan(letter, p.aql);
+}
+
+/* ================== MOTOR DE PUNTOS Y NIVELES ================== */
+function procesarLote(prov, lote){
+  let u5 = JSON.parse(prov.ultimos5 || '[]');
+  let delta;
+  if(lote.estado==='Aprobado'){
+    delta = lote.defectos===0 ? 3 : 2;
+    prov.puntos = (+prov.puntos||0) + delta;
+    prov.puntosDesdeUltimoRechazo = (+prov.puntosDesdeUltimoRechazo||0) + delta;
+    prov.rachaAprobConsec = (+prov.rachaAprobConsec||0) + 1;
+    prov.rachaRechConsec = 0;
+  } else {
+    delta = -5;
+    prov.puntos = (+prov.puntos||0) + delta;
+    prov.puntosDesdeUltimoRechazo = 0;
+    prov.rachaRechConsec = (+prov.rachaRechConsec||0) + 1;
+    prov.rachaAprobConsec = 0;
+  }
+  u5.push(lote.estado); if(u5.length>5) u5.shift();
+  prov.ultimos5 = JSON.stringify(u5);
+  lote.puntosOtorgados = delta;
+
+  const pctDef = lote.cantidad ? lote.defectos/lote.cantidad : 0;
+  const nc = prov.nivelControl;
+  if(nc==='Total'){
+    if(pctDef>0.25){ prov.nivelControl='Suspendido'; }
+    else if(prov.rachaAprobConsec>=5){ prov.nivelControl='Estricto'; prov.rachaAprobConsec=0; prov.rachaRechConsec=0; }
+  } else if(nc==='Estricto'){
+    if(prov.rachaRechConsec>=5 || prov.puntos<=-20){ prov.nivelControl='Total'; }
+    else if(prov.rachaAprobConsec>=5){ prov.nivelControl='Normal'; prov.rachaAprobConsec=0; }
+  } else if(nc==='Normal'){
+    const rechUlt5 = u5.filter(x=>x==='Rechazado').length;
+    if(rechUlt5>=2){ prov.nivelControl='Estricto'; }
+    else if(prov.puntosDesdeUltimoRechazo>=30){ prov.nivelControl='Simplificado'; }
+  } else if(nc==='Simplificado'){
+    if(lote.estado==='Rechazado'){ prov.nivelControl='Normal'; }
+  }
+  // 'Suspendido': sin salida automática (requiere decisión manual/comercial)
+  return prov;
+}
+
+/* ================== ESTADO LOCAL + SYNC ================== */
+let STATE = {proveedores:[], remitos:[], lotes:[]};
+
+async function apiGet(){
+  const res = await fetch(APPS_SCRIPT_URL + '?action=getAll');
+  return res.json();
+}
+async function apiPost(payload){
+  const res = await fetch(APPS_SCRIPT_URL, {method:'POST', body: JSON.stringify(payload)});
+  return res.json();
+}
+async function sync(silent){
+  try{
+    STATE = await apiGet();
+    document.getElementById('syncDot').className='';
+    document.getElementById('syncTxt').textContent='sincronizado';
+    refreshUI();
+  }catch(e){
+    document.getElementById('syncDot').className='off';
+    document.getElementById('syncTxt').textContent='sin conexión al servidor';
+  }
+}
+setInterval(()=>sync(true), POLL_MS);
+
+function refreshUI(){
+  fillProveedorSelect(); onProveedorChange();
+  fillRemitoSelect(); renderScorecard(); renderHistorico();
+}
+
+/* ================== TAB 1: CARGA ================== */
+function fillProveedorSelect(){
+  const sel = document.getElementById('proveedor');
+  const cur = sel.value;
+  sel.innerHTML = STATE.proveedores.map(p=>`<option value="${p.nombre}">${p.nombre}</option>`).join('');
+  if(cur) sel.value = cur;
+}
+function onProveedorChange(){
+  const nombre = document.getElementById('proveedor').value;
+  const prov = STATE.proveedores.find(p=>p.nombre===nombre);
+  const box = document.getElementById('provInfo');
+  const btn = document.getElementById('btnGuardar');
+  if(!prov){ box.textContent=''; return; }
+  const p = paramsPorNivelControl(prov.nivelControl);
+  box.innerHTML = `<b>${prov.nombre}</b> — Nivel de Control: <b>${prov.nivelControl}</b> · ${p.label} · Puntos: <b>${prov.puntos}</b>`;
+  if(prov.nivelControl==='Suspendido'){
+    box.innerHTML = `<div class="banner-bad">⛔ ${prov.nombre} está en SUSPENSIÓN DE COMPRAS por superar 25% de defectuosos en Control Total. No se pueden cargar nuevos remitos hasta reactivación manual.</div>`;
+    btn.disabled = true;
+  } else { btn.disabled = false; }
+  recalcAllRows();
+}
+let rowCounter=0;
+function addLoteRow(){
+  rowCounter++;
+  const tr=document.createElement('tr'); tr.dataset.id=rowCounter;
+  tr.innerHTML=`<td><input style="width:55px" value="${rowCounter}" class="f-item"></td>
+    <td><input style="width:75px" type="number" class="f-dn" placeholder="500"></td>
+    <td><select class="f-union"><option>Pegado Simple</option><option>Vulcanizado</option></select></td>
+    <td><input style="width:85px" type="number" class="f-cant" oninput="recalcRow(this)"></td>
+    <td class="f-n">–</td><td class="f-ac">–</td><td class="f-re">–</td>
+    <td><input style="width:75px" type="number" class="f-def" oninput="recalcRow(this)"></td>
+    <td class="f-estado">–</td><td><input class="f-obs" placeholder="Observaciones"></td>
+    <td><button class="x-btn" onclick="this.closest('tr').remove()">✕</button></td>`;
+  document.getElementById('loteBody').appendChild(tr);
+}
+function recalcRow(el){
+  const tr = el.closest('tr');
+  const cant = parseInt(tr.querySelector('.f-cant').value)||0;
+  const def = parseInt(tr.querySelector('.f-def').value)||0;
+  const prov = STATE.proveedores.find(p=>p.nombre===document.getElementById('proveedor').value);
+  const estadoCell = tr.querySelector('.f-estado');
+  if(cant<1 || !prov){ tr.querySelector('.f-n').textContent='–';tr.querySelector('.f-ac').textContent='–';tr.querySelector('.f-re').textContent='–';estadoCell.innerHTML='–';return; }
+  const plan = planPara(prov.nivelControl, cant);
+  tr.querySelector('.f-n').textContent = plan.n;
+  tr.querySelector('.f-ac').textContent = plan.ac;
+  tr.querySelector('.f-re').textContent = plan.re;
+  const aprobado = def<=plan.ac;
+  estadoCell.innerHTML = `<span class="pill ${aprobado?'ok':'bad'}">${aprobado?'Aprobado':'Rechazado'}</span>`;
+  tr._plan = plan;
+}
+function recalcAllRows(){ document.querySelectorAll('#loteBody tr').forEach(tr=>{const c=tr.querySelector('.f-cant'); if(c) recalcRow(c);}); }
+
+async function guardarRemito(){
+  const nombre = document.getElementById('proveedor').value;
+  const prov = STATE.proveedores.find(p=>p.nombre===nombre);
+  const remitoNum = document.getElementById('remitoNum').value.trim();
+  const fecha = document.getElementById('fecha').value || new Date().toISOString().slice(0,10);
+  if(!prov || !remitoNum){ alert('Completá proveedor y N° de remito.'); return; }
+  const rows = [...document.querySelectorAll('#loteBody tr')];
+  if(rows.length===0){ alert('Agregá al menos un lote.'); return; }
+  const lotes = [];
+  for(const tr of rows){
+    const cant = parseInt(tr.querySelector('.f-cant').value)||0;
+    const def = parseInt(tr.querySelector('.f-def').value)||0;
+    if(cant<1){ alert('Revisá la cantidad recibida.'); return; }
+    const plan = tr._plan || planPara(prov.nivelControl, cant);
+    const estado = def<=plan.ac ? 'Aprobado':'Rechazado';
+    const lote = {item:tr.querySelector('.f-item').value, dn:tr.querySelector('.f-dn').value, union:tr.querySelector('.f-union').value,
+      cantidad:cant, n:plan.n, ac:plan.ac, re:plan.re, defectos:def, estado, obs:tr.querySelector('.f-obs').value};
+    procesarLote(prov, lote); // actualiza prov en el momento y agrega puntosOtorgados al lote
+    lotes.push(lote);
+  }
+  const p = paramsPorNivelControl(prov.nivelControl);
+  const remito = {id:Date.now(), proveedor:prov.nombre, remitoNum, fecha, nivelControlAlMomento:prov.nivelControl, aql:p.aql, nivelInspeccion:p.nivelInsp};
+  await apiPost({action:'addRemito', remito, lotes});
+  await apiPost({action:'updateProveedor', nombre:prov.nombre, nivelControl:prov.nivelControl, puntos:prov.puntos, puntosDesdeUltimoRechazo:prov.puntosDesdeUltimoRechazo, rachaAprobConsec:prov.rachaAprobConsec, rachaRechConsec:prov.rachaRechConsec, ultimos5:JSON.parse(prov.ultimos5)});
+  document.getElementById('loteBody').innerHTML=''; rowCounter=0; addLoteRow();
+  document.getElementById('remitoNum').value='';
+  await sync();
+  document.getElementById('remitoSel').value = remito.id;
+  renderRemitoDetalle(remito.id);
+  switchTab('remito');
+}
+
+/* ================== TAB 2: REPORTE REMITO ================== */
+function fillRemitoSelect(){
+  const sel = document.getElementById('remitoSel');
+  const cur = sel.value;
+  const ordenados = [...STATE.remitos].sort((a,b)=>b.id-a.id);
+  sel.innerHTML = ordenados.map(r=>`<option value="${r.id}">${r.remitoNum} — ${r.proveedor} (${r.fecha})</option>`).join('');
+  if(cur) sel.value = cur;
+}
+function filtrarRemitos(){
+  const q = document.getElementById('remitoBuscar').value.toLowerCase();
+  const ordenados = [...STATE.remitos].sort((a,b)=>b.id-a.id).filter(r=> (r.remitoNum+r.proveedor).toLowerCase().includes(q));
+  document.getElementById('remitoSel').innerHTML = ordenados.map(r=>`<option value="${r.id}">${r.remitoNum} — ${r.proveedor} (${r.fecha})</option>`).join('');
+  if(ordenados[0]) renderRemitoDetalle(ordenados[0].id);
+}
+function renderRemitoDetalle(id){
+  const remito = STATE.remitos.find(r=>String(r.id)===String(id));
+  const box = document.getElementById('remitoDetalle');
+  if(!remito){ box.innerHTML='<p class="small">Sin remito seleccionado.</p>'; return; }
+  const lotes = STATE.lotes.filter(l=>String(l.remitoId)===String(remito.id));
+  const rec = lotes.reduce((s,l)=>s+(+l.cantidad),0);
+  const ap = lotes.filter(l=>l.estado==='Aprobado').reduce((s,l)=>s+(+l.cantidad),0);
+  box.innerHTML = `<h2>Remito ${remito.remitoNum} — ${remito.proveedor}</h2>
+    <p class="small">Fecha: ${remito.fecha} · Nivel Control: ${remito.nivelControlAlMomento} · AQL: ${remito.aql||'100%'} / Insp.: ${remito.nivelInspeccion}</p>
+    <p class="small">Recibidas: <b>${rec}</b> · Aprobadas: <b style="color:var(--ok)">${ap}</b> · Rechazadas: <b style="color:var(--bad)">${rec-ap}</b></p>
+    <div class="tablewrap"><table><thead><tr><th>Item</th><th>DN</th><th>Unión</th><th>Cant.</th><th>n</th><th>Ac</th><th>Re</th><th>Def.</th><th>Estado</th><th>Pts</th><th>Obs.</th></tr></thead>
+    <tbody>${lotes.map(l=>`<tr><td>${l.item}</td><td>${l.dn}</td><td>${l.union}</td><td>${l.cantidad}</td><td>${l.n}</td><td>${l.ac}</td><td>${l.re}</td><td>${l.defectos}</td>
+      <td><span class="pill ${l.estado==='Aprobado'?'ok':'bad'}">${l.estado}</span></td><td>${l.puntosOtorgados>0?'+':''}${l.puntosOtorgados}</td><td>${l.obs||'-'}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+/* ================== TAB 3: SCORECARD + HISTORICO ================== */
+function renderScorecard(){
+  const body = document.getElementById('scoreBody');
+  body.innerHTML = STATE.proveedores.map(p=>{
+    const info = paramsPorNivelControl(p.nivelControl);
+    const u5 = JSON.parse(p.ultimos5||'[]');
+    const pillClass = p.nivelControl==='Suspendido'?'bad':p.nivelControl==='Total'||p.nivelControl==='Estricto'?'warn':'ok';
+    return `<tr><td><b>${p.nombre}</b></td><td><span class="pill ${pillClass}">${p.nivelControl}</span></td>
+      <td class="small">${info.label}</td><td>${p.puntos}</td><td>${p.rachaAprobConsec}</td>
+      <td>${u5.map(x=>x==='Aprobado'?'✅':'❌').join(' ')||'-'}</td>
+      <td>${p.nivelControl==='Suspendido'?'⛔ Bloqueado':'✔ Activo'}</td></tr>`;
+  }).join('');
+}
+function renderHistorico(){
+  const fProv = document.getElementById('fProv');
+  const curP = fProv.value;
+  const provs = [...new Set(STATE.lotes.map(l=>{const r=STATE.remitos.find(x=>String(x.id)===String(l.remitoId)); return r?r.proveedor:null;}).filter(Boolean))];
+  fProv.innerHTML = '<option value="">Todos</option>' + provs.map(p=>`<option ${p===curP?'selected':''}>${p}</option>`).join('');
+  const groupBy = document.getElementById('groupBy').value;
+  const groups = {};
+  STATE.lotes.forEach(l=>{
+    const r = STATE.remitos.find(x=>String(x.id)===String(l.remitoId));
+    if(!r) return;
+    if(fProv.value && r.proveedor!==fProv.value) return;
+    const key = groupBy==='proveedor'?r.proveedor: groupBy==='dn'?`DN ${l.dn}`: groupBy==='union'?l.union: `${r.proveedor} / DN ${l.dn}`;
+    if(!groups[key]) groups[key]={rec:0,ap:0,re:0};
+    groups[key].rec += +l.cantidad;
+    if(l.estado==='Aprobado') groups[key].ap += +l.cantidad; else groups[key].re += +l.cantidad;
+  });
+  const body = document.getElementById('histBody');
+  const keys = Object.keys(groups).sort();
+  body.innerHTML = keys.length ? keys.map(k=>{const g=groups[k]; const pa=g.rec?(g.ap/g.rec*100).toFixed(1):'0.0'; const pr=g.rec?(g.re/g.rec*100).toFixed(1):'0.0';
+    return `<tr><td>${k}</td><td>${g.rec}</td><td style="color:var(--ok)">${g.ap}</td><td style="color:var(--bad)">${g.re}</td><td>${pa}%</td><td>${pr}%</td></tr>`;}).join('')
+    : '<tr><td colspan="6" class="small">Sin datos.</td></tr>';
+}
+
+/* ================== ALTA DE PROVEEDORES ================== */
+async function altaProveedor(){
+  const nombre = document.getElementById('nuevoProv').value.trim();
+  if(!nombre){ alert('Ingresá un nombre.'); return; }
+  await apiPost({action:'addProveedor', nombre, trazabilidad:document.getElementById('nuevaTraza').value});
+  document.getElementById('nuevoProv').value=''; document.getElementById('nuevaTraza').value='';
+  await sync();
+  alert('Proveedor registrado en Nivel Normal con 0 puntos.');
+}
+
+/* ================== TABS ================== */
+function switchTab(id){
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===id));
+  document.querySelectorAll('section').forEach(s=>s.classList.toggle('active', s.id===id));
+}
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click', ()=>switchTab(b.dataset.tab)));
+
+/* ================== INIT ================== */
+document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
+addLoteRow();
+sync();
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
